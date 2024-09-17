@@ -39,9 +39,7 @@ impl<'de> Deserialize<'de> for Collection {
         D: serde::Deserializer<'de>,
     {
         let s: String = Deserialize::deserialize(deserializer)?;
-        let s = s
-            .strip_prefix("collection:")
-            .ok_or_else(|| D::Error::custom("expected collection:name"))?;
+        let s = s.strip_prefix("collection:").ok_or_else(|| D::Error::custom("expected collection:name"))?;
 
         Ok(match s {
             "*" => Collection::All,
@@ -64,12 +62,8 @@ pub enum Network {
 impl From<Network> for Url {
     fn from(val: Network) -> Self {
         match val {
-            Network::Mainnet => {
-                Url::parse("wss://stream.openseabeta.com/socket/websocket").unwrap()
-            }
-            Network::Testnet => {
-                Url::parse("wss://testnets-stream.openseabeta.com/socket/websocket").unwrap()
-            }
+            Network::Mainnet => Url::parse("wss://stream.openseabeta.com/socket/websocket").unwrap(),
+            Network::Testnet => Url::parse("wss://testnets-stream.openseabeta.com/socket/websocket").unwrap(),
         }
     }
 }

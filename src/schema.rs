@@ -1,9 +1,6 @@
 use crate::Event;
+use alloy_primitives::{Address, B256, U256};
 use chrono::{DateTime, Utc};
-use ethers_core::{
-    abi::Address,
-    types::{H256, U256},
-};
 use serde::{de::Error, Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 use url::Url;
@@ -20,7 +17,7 @@ pub struct StreamEvent {
 
 /// Content of the message.
 ///
-/// This type corresponds to the JSON objects recieved [as described here](https://docs.opensea.io/reference/stream-api-event-schemas),
+/// This type corresponds to the JSON objects received [as described here](https://docs.opensea.io/reference/stream-api-event-schemas),
 /// not the event type used for the Phoenix protocol (see [`Event`]).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "event_type", content = "payload")]
@@ -56,6 +53,20 @@ impl From<Payload> for Event {
     }
 }
 
+impl Payload {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Payload::ItemListed(_) => "item_listed",
+            Payload::ItemSold(_) => "item_sold",
+            Payload::ItemTransferred(_) => "item_transferred",
+            Payload::ItemMetadataUpdated(_) => "item_metadata_updated",
+            Payload::ItemCancelled(_) => "item_cancelled",
+            Payload::ItemReceivedOffer(_) => "item_received_offer",
+            Payload::ItemReceivedBid(_) => "item_received_bid",
+        }
+    }
+}
+
 /// Context for a message (token and collection)
 ///
 /// This struct is present in every [`Payload`].
@@ -71,6 +82,14 @@ pub struct Context {
 #[derive(Debug, Clone)]
 pub struct Collection(String);
 
+/// A collection on OpenSea.
+impl Collection {
+    /// As str.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 impl Serialize for Collection {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -81,10 +100,7 @@ impl Serialize for Collection {
             slug: String,
         }
 
-        Inner {
-            slug: self.0.clone(),
-        }
-        .serialize(serializer)
+        Inner { slug: self.0.clone() }.serialize(serializer)
     }
 }
 
@@ -149,23 +165,11 @@ impl<'de> Deserialize<'de> for NftId {
             .ok_or_else(|| D::Error::custom("expected network"))?
             .map_err(|_| D::Error::custom("invalid network"))?;
 
-        let address = parts
-            .next()
-            .map(Address::from_str)
-            .ok_or_else(|| D::Error::custom("expected address"))?
-            .map_err(D::Error::custom)?;
+        let address = parts.next().map(Address::from_str).ok_or_else(|| D::Error::custom("expected address"))?.map_err(D::Error::custom)?;
 
-        let id = parts
-            .next()
-            .map(U256::from_dec_str)
-            .ok_or_else(|| D::Error::custom("expected id"))?
-            .map_err(D::Error::custom)?;
+        let id = parts.next().map(U256::from_str).ok_or_else(|| D::Error::custom("expected id"))?.map_err(D::Error::custom)?;
 
-        Ok(NftId {
-            network,
-            address,
-            id,
-        })
+        Ok(NftId { network, address, id })
     }
 }
 
@@ -174,7 +178,7 @@ mod chain {
     use serde::{Deserialize, Serialize};
 
     /// Network an item is on.
-    #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+    #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
     #[serde(tag = "name", rename_all = "lowercase")]
     #[non_exhaustive]
     pub enum Chain {
@@ -280,7 +284,7 @@ pub struct ItemListedData {
     #[serde(with = "address_fromjson")]
     pub maker: Address,
     /// Hash id of the listing.
-    pub order_hash: H256,
+    pub order_hash: B256,
     /// Token accepted for payment.
     pub payment_token: PaymentToken,
     /// Number of items on sale. This is always `1` for ERC-721 tokens.
@@ -308,6 +312,8 @@ pub struct ItemSoldData {
     /// Creator of the listing.
     #[serde(with = "address_fromjson")]
     pub maker: Address,
+    /// Hash id of the listing.
+    pub order_hash: B256,
     /// Token used for payment.
     pub payment_token: PaymentToken,
     /// Number of items bought. This is always `1` for ERC-721 tokens.
@@ -382,13 +388,58 @@ pub struct ItemCancelledData {
     #[serde(with = "address_fromjson")]
     pub maker: Address,
     /// Hash id of the listing.
-    pub order_hash: H256,
+    pub order_hash: B256,
     /// Token accepted for payment.
     pub payment_token: PaymentToken,
     /// Number of items in listing. This is always `1` for ERC-721 tokens.
     pub quantity: u64,
     /// Transaction for the cancellation.
     pub transaction: Transaction,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Offer {
+    pub end_amount: u64,
+    pub identifier_or_criteria: String,
+    pub item_type: u64,
+    pub start_amount: u64,
+    pub token: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Consideration {
+    pub end_amount: u64,
+    pub identifier_or_criteria: u64,
+    pub item_type: u64,
+    pub recipient: String,
+    pub start_amount: u64,
+    pub token: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Parameters {
+    pub conduit_key: String,
+    pub consideration: Vec<Consideration>,
+    pub counter: u64,
+    pub end_time: DateTime<Utc>,
+    pub offer: Vec<Offer>,
+    pub offerer: String,
+    pub order_type: u64,
+    pub salt: u64,
+    pub start_time: DateTime<Utc>,
+    pub total_original_consideration_items: u64,
+    pub zone: String,
+    pub zone_hash: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtocolData {
+    pub parameters: Parameters,
+    pub signature: String,
 }
 
 /// Payload data for [`Payload::ItemReceivedOffer`].
@@ -411,7 +462,7 @@ pub struct ItemReceivedOfferData {
     #[serde(with = "address_fromjson")]
     pub maker: Address,
     /// Hash id of the listing.
-    pub order_hash: H256,
+    pub order_hash: B256,
     /// Token offered for payment.
     pub payment_token: PaymentToken,
     /// Number of items on the offer. This is always `1` for ERC-721 tokens.
@@ -419,6 +470,8 @@ pub struct ItemReceivedOfferData {
     /// Taker of the offer.
     #[serde(with = "address_fromjson_opt", default)]
     pub taker: Option<Address>,
+
+    pub protocol_data: ProtocolData,
 }
 
 /// Payload data for [`Payload::ItemReceivedBid`].
@@ -441,7 +494,7 @@ pub struct ItemReceivedBidData {
     #[serde(with = "address_fromjson")]
     pub maker: Address,
     /// Hash id of the listing.
-    pub order_hash: H256,
+    pub order_hash: B256,
     /// Token offered for payment.
     pub payment_token: PaymentToken,
     /// Number of items on the offer. This is always `1` for ERC-721 tokens.
@@ -475,7 +528,7 @@ impl fmt::Display for ListingType {
 }
 
 mod address_fromjson {
-    use ethers_core::abi::Address;
+    use alloy_primitives::Address;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     #[derive(Serialize, Deserialize)]
@@ -499,7 +552,7 @@ mod address_fromjson {
 }
 
 mod address_fromjson_opt {
-    use ethers_core::abi::Address;
+    use alloy_primitives::Address;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     #[derive(Serialize, Deserialize)]
@@ -527,7 +580,7 @@ mod address_fromjson_opt {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Transaction {
     /// Transaction hash
-    pub hash: H256,
+    pub hash: B256,
     /// Timestamp of transaction
     pub timestamp: DateTime<Utc>,
 }
@@ -574,7 +627,7 @@ mod u256_fromstr_radix_10 {
             where
                 E: serde::de::Error,
             {
-                U256::from_dec_str(value).map_err(serde::de::Error::custom)
+                U256::from_str(value).map_err(serde::de::Error::custom)
             }
         }
 

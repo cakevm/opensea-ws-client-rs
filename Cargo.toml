@@ -1,28 +1,29 @@
 [package]
-name = "opensea-stream"
+name = "opensea-ws-client-rs"
 description = "Client for receiving updates from the OpenSea Stream API over websockets"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/wanderers-nft/opensea-stream-rs"
 categories = ["web-programming::websocket", "cryptography::cryptocurrencies"]
 keywords = ["opensea", "stream", "nft"]
-version = "0.4.0"
+version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version = "0.4.19", features = ["serde"] }
-ethers-core = { version = "2" }
-serde = { version = "1.0.137", features = ["derive"] }
-serde_json = "1.0.81"
+alloy-primitives = { version = "0.8", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 phyllo = "0.3.0"
-tokio = { version = "1.18.2", features = ["sync"] }
-url = { version = "2.2.2", features = ["serde"] }
+tokio = { version = "1.40", features = ["sync"] }
+url = { version = "2.5", features = ["serde"] }
 
 [dev-dependencies]
-anyhow = "1.0.58"
-tokio = { version = "1.18.2", features = ["full"] }
+eyre = "0.6"
+tokio = { version = "1.40", features = ["full"] }
 
 [features]
 default = ["rustls-tls-native-roots"]

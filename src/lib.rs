@@ -1,5 +1,3 @@
-#![deny(missing_docs)]
-
 //! Crate for receiving updates from the [OpenSea Stream API](https://docs.opensea.io/reference/stream-api-overview).
 //! This crate is a thin wrapper over [`phyllo`] with a few convenience functions and struct definitions for the event schema.
 //! It is recommended that you also read the documentation of [`phyllo`] to understand the Phoenix protocol which delivers these messages.
@@ -9,11 +7,12 @@
 //! # Example
 //! The following example prints all listings of items in the `wandernauts` collection as they are created.
 //! ```no_run
-//! # use opensea_stream::{client, schema, subscribe_to, Collection, Network};
+//! # use opensea_ws_client_rs::{client, schema, subscribe_to, Collection, Network};
 //! # use phyllo::message::Payload;
 //! #[tokio::main]
-//! async fn main() -> anyhow::Result<()> {
-//!     let mut client = client(Network::Mainnet, "YOUR_API_KEY_HERE").await;
+//! async fn main() -> eyre::Result<()> {
+//!     use opensea_ws_client_rs::{client, Network};
+//! let mut client = client(Network::Mainnet, "YOUR_API_KEY_HERE").await;
 //!
 //!     // Subscribe to a collection. Note that you must all subscribe to all events
 //!     // in the collection; filtering is your responsibility (see below).
@@ -83,10 +82,7 @@ pub async fn subscribe_to(
     socket: &mut SocketHandler<Collection>,
     collection: Collection,
 ) -> Result<
-    (
-        ChannelHandler<Collection, Event, Value, StreamEvent>,
-        broadcast::Receiver<Message<Collection, Event, Value, StreamEvent>>,
-    ),
+    (ChannelHandler<Collection, Event, Value, StreamEvent>, broadcast::Receiver<Message<Collection, Event, Value, StreamEvent>>),
     RegisterChannelError,
 > {
     socket.channel(ChannelBuilder::new(collection)).await
@@ -98,10 +94,7 @@ pub async fn subscribe_to_with_config(
     socket: &mut SocketHandler<Collection>,
     channel_builder: ChannelBuilder<Collection>,
 ) -> Result<
-    (
-        ChannelHandler<Collection, Event, Value, StreamEvent>,
-        broadcast::Receiver<Message<Collection, Event, Value, StreamEvent>>,
-    ),
+    (ChannelHandler<Collection, Event, Value, StreamEvent>, broadcast::Receiver<Message<Collection, Event, Value, StreamEvent>>),
     RegisterChannelError,
 > {
     socket.channel(channel_builder).await
