@@ -7,7 +7,7 @@ async fn main() -> eyre::Result<()> {
 
     // Subscribe to a collection. Note that you must all subscribe to all events
     // in the collection; filtering is your responsibility (see below).
-    let (handler, mut subscription) = subscribe_to(&mut client, Collection::All).await?;
+    let (_handler, mut subscription) = subscribe_to(&mut client, Collection::All).await?;
 
     // To unsubscribe:
     // handler.close().await?;
